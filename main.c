@@ -1,7 +1,7 @@
+#include "font.h"
 #include <SDL2/SDL.h>
 #include <math.h>
 #include <stdlib.h>
-#include "font.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -40,15 +40,22 @@ typedef struct {
   float life;
 } Particle;
 
-const int NUM_VERTICES = 8;
-Vec3 cube_vs[8] = {{-1.0f, 1.0f, -1.0f},  {1.0f, 1.0f, -1.0f},
-                   {1.0f, 1.0f, 1.0f},    {-1.0f, 1.0f, 1.0f},
-                   {-1.0f, -1.0f, -1.0f}, {1.0f, -1.0f, -1.0f},
-                   {1.0f, -1.0f, 1.0f},   {-1.0f, -1.0f, 1.0f}};
+const int NUM_VERTICES = 14;
+Vec3 obj_vs[14] = {
+    {0.0f, 0.0f, 1.5f},   {-0.5f, 0.2f, 0.5f},   {0.5f, 0.2f, 0.5f},
+    {-0.5f, -0.2f, 0.5f}, {0.5f, -0.2f, 0.5f},   {-1.0f, 0.5f, -1.0f},
+    {1.0f, 0.5f, -1.0f},  {-1.0f, -0.5f, -1.0f}, {1.0f, -0.5f, -1.0f},
+    {-2.5f, 1.0f, 0.0f},  {2.5f, 1.0f, 0.0f},    {-2.5f, -1.0f, 0.0f},
+    {2.5f, -1.0f, 0.0f},  {0.0f, 0.0f, -1.2f}};
 
-const int NUM_FACES = 6;
-Face fs[6] = {{4, {0, 1, 2, 3}}, {4, {7, 6, 5, 4}}, {4, {3, 2, 6, 7}},
-              {4, {1, 0, 4, 5}}, {4, {2, 1, 5, 6}}, {4, {0, 3, 7, 4}}};
+const int NUM_FACES = 28;
+Face fs[28] = {{2, {0, 1}},  {2, {0, 2}},  {2, {0, 3}},  {2, {0, 4}},
+               {2, {1, 2}},  {2, {2, 4}},  {2, {4, 3}},  {2, {3, 1}},
+               {2, {1, 5}},  {2, {2, 6}},  {2, {3, 7}},  {2, {4, 8}},
+               {2, {5, 6}},  {2, {6, 8}},  {2, {8, 7}},  {2, {7, 5}},
+               {2, {5, 9}},  {2, {9, 1}},  {2, {6, 10}}, {2, {10, 2}},
+               {2, {7, 11}}, {2, {11, 3}}, {2, {8, 12}}, {2, {12, 4}},
+               {2, {5, 13}}, {2, {6, 13}}, {2, {7, 13}}, {2, {8, 13}}};
 
 Vec2 project_persp(Vec3 v) {
   Vec2 p;
@@ -73,6 +80,23 @@ Vec3 apply_camera(Vec3 v, float cam_yaw, float cam_pitch) {
   float z2 = v.y * sp + z1 * cp;
 
   return (Vec3){x1, y2, z2};
+}
+
+Vec3 rotate_xz(Vec3 v, float angle) {
+  float c = cosf(angle);
+  float s = sinf(angle);
+  return (Vec3){v.x * c - v.z * s, v.y, v.x * s + v.z * c};
+}
+
+Vec3 rotate_yz(Vec3 v, float angle) {
+  float c = cosf(angle);
+  float s = sinf(angle);
+  return (Vec3){v.x, v.y * c - v.z * s, v.y * s + v.z * c};
+}
+Vec3 rotate_xy(Vec3 v, float angle) {
+  float c = cosf(angle);
+  float s = sinf(angle);
+  return (Vec3){v.x * c - v.y * s, v.x * s + v.y * c, v.z};
 }
 
 float dot_product(Vec3 a, Vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
@@ -113,16 +137,16 @@ void draw_3d_line(Vec3 w_a, Vec3 w_b, float cam_yaw, float cam_pitch) {
 int main() {
   if (SDL_Init(SDL_INIT_VIDEO) != 0)
     return 1;
-
+    
   SDL_Window *window =
       SDL_CreateWindow("Ballistic Simulator", SDL_WINDOWPOS_CENTERED,
                        SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_SHOWN);
   renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
   SDL_SetRelativeMouseMode(SDL_TRUE);
-
+SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
   int running = 1;
   SDL_Event event;
-
+  SDL_GetWindowSize(window,&width, &height);
   float cam_yaw = 0.0f;
   float cam_pitch = 0.2f;
   float mouse_sensitivity = 0.003f;
@@ -138,9 +162,9 @@ int main() {
   Target targets[MAX_TARGETS] = {0};
   Particle particles[MAX_PARTICLES] = {0};
 
-  const float max_dist_x = 100.0f;
-  const float max_dist_z = 100.0f;
-  const float min_dist_z = -50.0f;
+  const float max_dist_x = 150.0f;
+  const float max_dist_z = 150.0f;
+  const float min_dist_z = -150.0f;
   for (int i = 0; i < MAX_TARGETS; i++) {
     targets[i].active = 1;
     targets[i].pos = (Vec3){(rand() % 40 - 20), 15.0f + (rand() % 10),
@@ -167,10 +191,10 @@ int main() {
       if (event.type == SDL_MOUSEMOTION) {
         cam_yaw -= event.motion.xrel * mouse_sensitivity;
         cam_pitch += event.motion.yrel * mouse_sensitivity;
-        if (cam_pitch > M_PI / 2.1f)
-          cam_pitch = M_PI / 2.1f;
-        if (cam_pitch < -M_PI / 2.1f)
-          cam_pitch = -M_PI / 2.1f;
+        if (cam_pitch > M_PI / 2.01f)
+          cam_pitch = M_PI / 2.01f;
+        if (cam_pitch < -M_PI / 2.01f)
+          cam_pitch = -M_PI / 2.01f;
         if (cam_yaw > 2 * M_PI)
           cam_yaw -= 2 * M_PI;
         if (cam_yaw < 0)
@@ -199,7 +223,6 @@ int main() {
       if (targets[i].active) {
         targets[i].pos.x += targets[i].vel.x * dt;
         targets[i].pos.z += targets[i].vel.z * dt;
-
         if (targets[i].pos.x > max_dist_x)
           targets[i].pos.x = -max_dist_x;
         if (targets[i].pos.x < -max_dist_x)
@@ -241,7 +264,6 @@ int main() {
             float dx = projectiles[p].pos.x - targets[t].pos.x;
             float dy = projectiles[p].pos.y - targets[t].pos.y;
             float dz = projectiles[p].pos.z - targets[t].pos.z;
-
             if (sqrtf(dx * dx + dy * dy + dz * dz) < 2.0f) {
               targets[t].active = 0;
               projectiles[p].active = 0;
@@ -279,7 +301,7 @@ int main() {
 
     SDL_SetRenderDrawColor(renderer, 40, 80, 40, 255);
     float floor_y = -5.0f;
-    for (int i = -100; i <= 100; i += 1) {
+    for (int i = -100; i <= 100; i += 5) {
       draw_3d_line((Vec3){-100, floor_y, i}, (Vec3){100, floor_y, i}, cam_yaw,
                    cam_pitch);
       draw_3d_line((Vec3){i, floor_y, -100}, (Vec3){i, floor_y, 100}, cam_yaw,
@@ -290,17 +312,21 @@ int main() {
     for (int t = 0; t < MAX_TARGETS; t++) {
       if (!targets[t].active)
         continue;
+      // vector angle to polar coordinates
+      float target_dir = atan2f(-targets[t].vel.x, targets[t].vel.z);
+
       for (int f_idx = 0; f_idx < NUM_FACES; ++f_idx) {
         for (int i = 0; i < fs[f_idx].count; ++i) {
           int v1 = fs[f_idx].v[i];
           int v2 = fs[f_idx].v[(i + 1) % fs[f_idx].count];
 
-          Vec3 w_p1 = {cube_vs[v1].x + targets[t].pos.x,
-                       cube_vs[v1].y + targets[t].pos.y,
-                       cube_vs[v1].z + targets[t].pos.z};
-          Vec3 w_p2 = {cube_vs[v2].x + targets[t].pos.x,
-                       cube_vs[v2].y + targets[t].pos.y,
-                       cube_vs[v2].z + targets[t].pos.z};
+          Vec3 r_p1 = rotate_xz(obj_vs[v1], target_dir);
+          Vec3 r_p2 = rotate_xz(obj_vs[v2], target_dir);
+
+          Vec3 w_p1 = {r_p1.x + targets[t].pos.x, r_p1.y + targets[t].pos.y,
+                       r_p1.z + targets[t].pos.z};
+          Vec3 w_p2 = {r_p2.x + targets[t].pos.x, r_p2.y + targets[t].pos.y,
+                       r_p2.z + targets[t].pos.z};
 
           draw_3d_line(w_p1, w_p2, cam_yaw, cam_pitch);
         }
