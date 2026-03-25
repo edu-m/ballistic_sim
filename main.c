@@ -1,15 +1,15 @@
 #include <SDL2/SDL.h>
 #include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
+#include "font.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 #define GRAV_CONST 9.8182f
 #define FPS_TARGET 180
-int width = 800;
-int height = 800;
+int width = 1200;
+int height = 1200;
 SDL_Renderer *renderer;
 
 typedef struct {
@@ -110,12 +110,12 @@ void draw_3d_line(Vec3 w_a, Vec3 w_b, float cam_yaw, float cam_pitch) {
   SDL_RenderDrawLine(renderer, (int)p_a.x, (int)p_a.y, (int)p_b.x, (int)p_b.y);
 }
 
-int main(int argc, char **argv) {
+int main() {
   if (SDL_Init(SDL_INIT_VIDEO) != 0)
     return 1;
 
   SDL_Window *window =
-      SDL_CreateWindow("First Person Cannon", SDL_WINDOWPOS_CENTERED,
+      SDL_CreateWindow("Ballistic Simulator", SDL_WINDOWPOS_CENTERED,
                        SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_SHOWN);
   renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
   SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -127,7 +127,7 @@ int main(int argc, char **argv) {
   float cam_pitch = 0.2f;
   float mouse_sensitivity = 0.003f;
 
-  float weapon_speed = 30.0f;
+  float weapon_speed = 50.0f;
   int show_indicator = 0;
 
 #define MAX_PROJ 30
@@ -145,13 +145,14 @@ int main(int argc, char **argv) {
     targets[i].active = 1;
     targets[i].pos = (Vec3){(rand() % 40 - 20), 15.0f + (rand() % 10),
                             20.0f + (rand() % 30)};
-    targets[i].vel = (Vec3){((rand() % 100) / 50.0f) - 1.0f * 5.0f, 0.0f,
-                            ((rand() % 100) / 50.0f) - 1.0f * 5.0f};
+    targets[i].vel =
+        (Vec3){((rand() % 15)) - 1.0f, 0.0f, ((rand() % 15)) - 1.0f};
   }
 
-  float dt = 1.0f / 60.0f;
+  float dt = 1.0f / 60;
 
   while (running) {
+
     while (SDL_PollEvent(&event)) {
       if (event.type == SDL_QUIT)
         running = 0;
@@ -170,6 +171,10 @@ int main(int argc, char **argv) {
           cam_pitch = M_PI / 2.1f;
         if (cam_pitch < -M_PI / 2.1f)
           cam_pitch = -M_PI / 2.1f;
+        if (cam_yaw > 2 * M_PI)
+          cam_yaw -= 2 * M_PI;
+        if (cam_yaw < 0)
+          cam_yaw += 2 * M_PI;
       }
 
       if (event.type == SDL_MOUSEBUTTONDOWN &&
@@ -274,7 +279,7 @@ int main(int argc, char **argv) {
 
     SDL_SetRenderDrawColor(renderer, 40, 80, 40, 255);
     float floor_y = -5.0f;
-    for (int i = -100; i <= 100; i += 5) {
+    for (int i = -100; i <= 100; i += 1) {
       draw_3d_line((Vec3){-100, floor_y, i}, (Vec3){100, floor_y, i}, cam_yaw,
                    cam_pitch);
       draw_3d_line((Vec3){i, floor_y, -100}, (Vec3){i, floor_y, 100}, cam_yaw,
@@ -387,6 +392,11 @@ int main(int argc, char **argv) {
                        height / 2);
     SDL_RenderDrawLine(renderer, width / 2, height / 2 - 10, width / 2,
                        height / 2 + 10);
+
+    char hud_data[64];
+    sprintf(hud_data, "P: %.2f Y: %.2f", cam_pitch * 180 / M_PI,
+            cam_yaw * 180 / M_PI);
+    draw_vector_string(renderer, hud_data, 20, 50, 5.0f);
 
     SDL_RenderPresent(renderer);
     SDL_Delay(1000 / FPS_TARGET);
