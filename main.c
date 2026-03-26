@@ -134,19 +134,25 @@ void draw_3d_line(Vec3 w_a, Vec3 w_b, float cam_yaw, float cam_pitch) {
   SDL_RenderDrawLine(renderer, (int)p_a.x, (int)p_a.y, (int)p_b.x, (int)p_b.y);
 }
 
+void clamp_wraparound(Vec3 *v, float val) {
+    v->x = (v->x > val) ? -val : (v->x < -val) ? val : v->x;
+    v->y = (v->y > val) ? -val : (v->y < -val) ? val : v->y;
+    v->z = (v->z > val) ? -val : (v->z < -val) ? val : v->z;
+}
+
 int main() {
   if (SDL_Init(SDL_INIT_VIDEO) != 0)
     return 1;
-    
+
   SDL_Window *window =
       SDL_CreateWindow("Ballistic Simulator", SDL_WINDOWPOS_CENTERED,
                        SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_SHOWN);
   renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
   SDL_SetRelativeMouseMode(SDL_TRUE);
-SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+  SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
   int running = 1;
   SDL_Event event;
-  SDL_GetWindowSize(window,&width, &height);
+  SDL_GetWindowSize(window, &width, &height);
   float cam_yaw = 0.0f;
   float cam_pitch = 0.2f;
   float mouse_sensitivity = 0.003f;
@@ -162,9 +168,7 @@ SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
   Target targets[MAX_TARGETS] = {0};
   Particle particles[MAX_PARTICLES] = {0};
 
-  const float max_dist_x = 150.0f;
-  const float max_dist_z = 150.0f;
-  const float min_dist_z = -150.0f;
+  const float max_dist = 200.0f;
   for (int i = 0; i < MAX_TARGETS; i++) {
     targets[i].active = 1;
     targets[i].pos = (Vec3){(rand() % 40 - 20), 15.0f + (rand() % 10),
@@ -223,14 +227,7 @@ SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
       if (targets[i].active) {
         targets[i].pos.x += targets[i].vel.x * dt;
         targets[i].pos.z += targets[i].vel.z * dt;
-        if (targets[i].pos.x > max_dist_x)
-          targets[i].pos.x = -max_dist_x;
-        if (targets[i].pos.x < -max_dist_x)
-          targets[i].pos.x = max_dist_x;
-        if (targets[i].pos.z > max_dist_z)
-          targets[i].pos.z = min_dist_z;
-        if (targets[i].pos.z < min_dist_z)
-          targets[i].pos.z = max_dist_z;
+        clamp_wraparound(&targets[i].pos, max_dist);
       }
     }
 
@@ -296,7 +293,7 @@ SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
       }
     }
 
-    SDL_SetRenderDrawColor(renderer, 10, 10, 20, 255);
+    SDL_SetRenderDrawColor(renderer, 30, 30, 40, 255);
     SDL_RenderClear(renderer);
 
     SDL_SetRenderDrawColor(renderer, 40, 80, 40, 255);
