@@ -1,13 +1,12 @@
 CC = gcc
-# Use -D to define ISOMETRIC here
-CFLAGS = -Wall -Wextra -O2 -DISOMETRIC=0 $(shell sdl2-config --cflags) -Wunused-parameter
+CFLAGS = -Wunused-parameter -Wall -Wextra -O3 -DISOMETRIC=0 $(shell sdl2-config --cflags)
 LDFLAGS = $(shell sdl2-config --libs) -lm
 
-TARGET = engine
-SRC = main.c
-
-$(TARGET): $(SRC)
-	$(CC) $(CFLAGS) $(SRC) -o $(TARGET) $(LDFLAGS)
-
+TARGETS = ballistic spacewar
+all: $(TARGETS)
+ballistic: ballistic.c
+	$(CC) $(CFLAGS) ballistic.c -o ballistic $(LDFLAGS)
+spacewar: spacewar.c
+	$(CC) $(CFLAGS) spacewar.c -o spacewar $(LDFLAGS)
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGETS)

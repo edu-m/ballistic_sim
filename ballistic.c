@@ -41,7 +41,7 @@ typedef struct {
 } Particle;
 
 const int NUM_VERTICES = 14;
-Vec3 obj_vs[14] = {
+Vec3 spaceship_vs[14] = {
     {0.0f, 0.0f, 1.5f},   {-0.5f, 0.2f, 0.5f},   {0.5f, 0.2f, 0.5f},
     {-0.5f, -0.2f, 0.5f}, {0.5f, -0.2f, 0.5f},   {-1.0f, 0.5f, -1.0f},
     {1.0f, 0.5f, -1.0f},  {-1.0f, -0.5f, -1.0f}, {1.0f, -0.5f, -1.0f},
@@ -49,7 +49,7 @@ Vec3 obj_vs[14] = {
     {2.5f, -1.0f, 0.0f},  {0.0f, 0.0f, -1.2f}};
 
 const int NUM_FACES = 28;
-Face fs[28] = {{2, {0, 1}},  {2, {0, 2}},  {2, {0, 3}},  {2, {0, 4}},
+Face spaceship_fs[28] = {{2, {0, 1}},  {2, {0, 2}},  {2, {0, 3}},  {2, {0, 4}},
                {2, {1, 2}},  {2, {2, 4}},  {2, {4, 3}},  {2, {3, 1}},
                {2, {1, 5}},  {2, {2, 6}},  {2, {3, 7}},  {2, {4, 8}},
                {2, {5, 6}},  {2, {6, 8}},  {2, {8, 7}},  {2, {7, 5}},
@@ -313,12 +313,12 @@ int main() {
       float target_dir = atan2f(-targets[t].vel.x, targets[t].vel.z);
 
       for (int f_idx = 0; f_idx < NUM_FACES; ++f_idx) {
-        for (int i = 0; i < fs[f_idx].count; ++i) {
-          int v1 = fs[f_idx].v[i];
-          int v2 = fs[f_idx].v[(i + 1) % fs[f_idx].count];
+        for (int i = 0; i < spaceship_fs[f_idx].count; ++i) {
+          int v1 = spaceship_fs[f_idx].v[i];
+          int v2 = spaceship_fs[f_idx].v[(i + 1) % spaceship_fs[f_idx].count];
 
-          Vec3 r_p1 = rotate_xz(obj_vs[v1], target_dir);
-          Vec3 r_p2 = rotate_xz(obj_vs[v2], target_dir);
+          Vec3 r_p1 = rotate_xz(spaceship_vs[v1], target_dir);
+          Vec3 r_p2 = rotate_xz(spaceship_vs[v2], target_dir);
 
           Vec3 w_p1 = {r_p1.x + targets[t].pos.x, r_p1.y + targets[t].pos.y,
                        r_p1.z + targets[t].pos.z};

@@ -1,4 +1,6 @@
 #include "font.h"
+#include "models.h"
+#include "structs.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_keycode.h>
@@ -8,6 +10,7 @@
 #include <stdlib.h>
 
 #define OLED 0
+#define SOUND 1
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -23,6 +26,10 @@ volatile int sfx_hmg = 0;
 volatile int sfx_exp = 0;
 volatile float audio_lock_ratio = 0.0f;
 volatile int audio_locked = 0;
+
+#if SOUND == 0
+void audio_callback(void *userdata, Uint8 *stream, int len) { return; }
+#else
 
 void audio_callback(void *userdata, Uint8 *stream, int len) {
   for (int i = 0; i < len; i++) {
@@ -47,81 +54,29 @@ void audio_callback(void *userdata, Uint8 *stream, int len) {
     } else if (audio_lock_ratio > 0.01f) {
       int f_start = 1;
       int f_end = 6;
-      float t_lock = 5.0f; // Matches your TIME_TO_LOCK
 
-      // 2. The quadratic phase integral (the chirp)
       float r = audio_lock_ratio;
       float phase = 2.0f * M_PI * TIME_TO_LOCK *
                     (f_start * r + ((f_end - f_start) / 2.0f) * r * r * r);
 
-      // 3. Convert the continuous sine wave into a boolean square wave
       int beep_on = sinf(phase - 0.1f) > 0.0f;
 
       if (beep_on) {
-        int pitch = 6; // Constant pitch tone
+        int pitch = 6;
         mixed_sample += (t * pitch & 128) ? 64 : 0;
       }
     }
 
-    // Mix down, prevent clipping, and output
     if (mixed_sample > 255)
       mixed_sample = 255;
     stream[i] = (Uint8)mixed_sample;
   }
 }
+#endif
 
 int width;
 int height;
 SDL_Renderer *renderer;
-
-typedef struct {
-  float x, y, z;
-} Vec3;
-typedef struct {
-  float x, y;
-} Vec2;
-typedef struct {
-  int count;
-  int v[4];
-} Face;
-
-typedef struct {
-  int active;
-  int type; // 0 = HMG, 1 = AAM
-  float ttl;
-  int target_id;
-  Vec3 pos;
-  Vec3 vel;
-} Projectile;
-
-typedef struct {
-  int active;
-  Vec3 pos;
-  Vec3 vel;
-} Target;
-typedef struct {
-  int active;
-  Vec3 pos;
-  Vec3 vel;
-  float life;
-} Particle;
-
-const int NUM_VERTICES = 14;
-Vec3 obj_vs[14] = {
-    {0.0f, 0.0f, 1.5f},   {-0.5f, 0.2f, 0.5f},   {0.5f, 0.2f, 0.5f},
-    {-0.5f, -0.2f, 0.5f}, {0.5f, -0.2f, 0.5f},   {-1.0f, 0.5f, -1.0f},
-    {1.0f, 0.5f, -1.0f},  {-1.0f, -0.5f, -1.0f}, {1.0f, -0.5f, -1.0f},
-    {-2.5f, 1.0f, 0.0f},  {2.5f, 1.0f, 0.0f},    {-2.5f, -1.0f, 0.0f},
-    {2.5f, -1.0f, 0.0f},  {0.0f, 0.0f, -1.2f}};
-
-const int NUM_FACES = 28;
-Face fs[28] = {{2, {0, 1}},  {2, {0, 2}},  {2, {0, 3}},  {2, {0, 4}},
-               {2, {1, 2}},  {2, {2, 4}},  {2, {4, 3}},  {2, {3, 1}},
-               {2, {1, 5}},  {2, {2, 6}},  {2, {3, 7}},  {2, {4, 8}},
-               {2, {5, 6}},  {2, {6, 8}},  {2, {8, 7}},  {2, {7, 5}},
-               {2, {5, 9}},  {2, {9, 1}},  {2, {6, 10}}, {2, {10, 2}},
-               {2, {7, 11}}, {2, {11, 3}}, {2, {8, 12}}, {2, {12, 4}},
-               {2, {5, 13}}, {2, {6, 13}}, {2, {7, 13}}, {2, {8, 13}}};
 
 Vec2 project_persp(Vec3 v) {
   Vec2 p;
@@ -212,19 +167,20 @@ int main() {
 
   SDL_AudioSpec want, have;
   SDL_zero(want);
-  want.freq = 8000;       // Classic bytebeat frequency
-  want.format = AUDIO_U8; // Unsigned 8-bit audio
-  want.channels = 1;      // Mono
-  want.samples = 512;     // Small buffer for low latency
+  want.freq = 8000;
+  want.format = AUDIO_U8;
+  want.channels = 1;
+  want.samples = 512;
   want.callback = audio_callback;
 
   SDL_AudioDeviceID audio_dev = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
   if (audio_dev > 0) {
-    SDL_PauseAudioDevice(audio_dev, 0); // Start playing immediately
+    SDL_PauseAudioDevice(audio_dev, 0);
   }
 
   SDL_DisplayMode DM;
   SDL_GetCurrentDisplayMode(0, &DM);
+
   width = DM.w;
   height = DM.h;
 
@@ -233,7 +189,7 @@ int main() {
       width, height, SDL_WINDOW_FULLSCREEN_DESKTOP);
   renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
   SDL_SetRelativeMouseMode(SDL_TRUE);
-
+  SDL_GetWindowSize(window, &width, &height);
   int running = 1;
   SDL_Event event;
 
@@ -337,7 +293,6 @@ int main() {
             projectiles[i].target_id =
                 (weapon_mode == 1) ? locked_target_idx : -1;
 
-            // Audio: Trigger HMG sound
             if (weapon_mode == 0)
               sfx_hmg = 255;
 
@@ -415,14 +370,11 @@ int main() {
         if (best_target_this_frame == current_locking_target) {
           lock_timer += dt;
 
-          // Audio: Feed the lock progress to the audio thread
           audio_lock_ratio = lock_timer / TIME_TO_LOCK;
           audio_locked = 0;
 
           if (lock_timer >= TIME_TO_LOCK) {
             locked_target_idx = current_locking_target;
-
-            // Audio: Lock complete!
             audio_locked = 1;
             audio_lock_ratio = 1.0f;
           }
@@ -430,8 +382,6 @@ int main() {
           current_locking_target = best_target_this_frame;
           lock_timer = 0.0f;
           locked_target_idx = -1;
-
-          // Audio: Reset audio
           audio_lock_ratio = 0.0f;
           audio_locked = 0;
         }
@@ -439,8 +389,6 @@ int main() {
         current_locking_target = -1;
         locked_target_idx = -1;
         lock_timer = 0.0f;
-
-        // Audio: Reset audio
         audio_lock_ratio = 0.0f;
         audio_locked = 0;
       }
@@ -455,8 +403,6 @@ int main() {
       locked_target_idx = -1;
       lock_timer = 0.0f;
       lost_track_timer = 0.0f;
-
-      // Audio: Clear audio locks if switching away from AAM
       audio_lock_ratio = 0.0f;
       audio_locked = 0;
     }
@@ -567,7 +513,6 @@ int main() {
               targets[t].active = 0;
               projectiles[p].active = 0;
 
-              // Audio: Trigger explosion sound
               sfx_exp = 255;
 
               int particles_to_spawn = 40;
@@ -666,11 +611,11 @@ int main() {
         continue;
       float target_yaw = atan2f(-targets[t].vel.x, targets[t].vel.z);
       for (int f_idx = 0; f_idx < NUM_FACES; ++f_idx) {
-        for (int i = 0; i < fs[f_idx].count; ++i) {
-          int v1 = fs[f_idx].v[i];
-          int v2 = fs[f_idx].v[(i + 1) % fs[f_idx].count];
-          Vec3 r_p1 = rotate_xz(obj_vs[v1], target_yaw);
-          Vec3 r_p2 = rotate_xz(obj_vs[v2], target_yaw);
+        for (int i = 0; i < spaceship_fs[f_idx].count; ++i) {
+          int v1 = spaceship_fs[f_idx].v[i];
+          int v2 = spaceship_fs[f_idx].v[(i + 1) % spaceship_fs[f_idx].count];
+          Vec3 r_p1 = rotate_xz(spaceship_vs[v1], target_yaw);
+          Vec3 r_p2 = rotate_xz(spaceship_vs[v2], target_yaw);
           Vec3 w_p1 = {r_p1.x + targets[t].pos.x, r_p1.y + targets[t].pos.y,
                        r_p1.z + targets[t].pos.z};
           Vec3 w_p2 = {r_p2.x + targets[t].pos.x, r_p2.y + targets[t].pos.y,
