@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wunused-parameter -Wall -Wextra -O3 -DISOMETRIC=0 $(shell sdl2-config --cflags)
+CFLAGS = -Wunused-parameter -Wall -Wextra -O3 $(shell sdl2-config --cflags)
 LDFLAGS = $(shell sdl2-config --libs) -lm
 
 TARGETS = ballistic spacewar
