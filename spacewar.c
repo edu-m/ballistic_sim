@@ -186,24 +186,19 @@ void draw_planet(int p_idx, Vec3 cam_pos, float cam_yaw, float cam_pitch) {
     float a = (float)i / meridians * M_PI;
     float sin_a = sinf(a);
     float cos_a = cosf(a);
-
     for (int j = 0; j < segments; j++) {
       float t1 = (float)j / segments * 2.0f * M_PI;
       float t2 = (float)(j + 1) / segments * 2.0f * M_PI;
-
       float bx1 = cosf(t1) * radius;
       float by1 = sinf(t1) * radius;
       float bx2 = cosf(t2) * radius;
       float by2 = sinf(t2) * radius;
-
       Vec3 p1 = {pos.x + (bx1 * cos_a), pos.y + by1, pos.z + (bx1 * sin_a)};
       Vec3 p2 = {pos.x + (bx2 * cos_a), pos.y + by2, pos.z + (bx2 * sin_a)};
-
       Vec3 n1 = {p1.x - pos.x, p1.y - pos.y, p1.z - pos.z};
       Vec3 v1 = {cam_pos.x - p1.x, cam_pos.y - p1.y, cam_pos.z - p1.z};
       Vec3 n2 = {p2.x - pos.x, p2.y - pos.y, p2.z - pos.z};
       Vec3 v2 = {cam_pos.x - p2.x, cam_pos.y - p2.y, cam_pos.z - p2.z};
-
       if ((n1.x * v1.x + n1.y * v1.y + n1.z * v1.z) < 0.0f &&
           (n2.x * v2.x + n2.y * v2.y + n2.z * v2.z) < 0.0f)
         continue;
@@ -211,7 +206,6 @@ void draw_planet(int p_idx, Vec3 cam_pos, float cam_yaw, float cam_pitch) {
     }
   }
 
-  // --- 2. SATURN RINGS WITH GLOBAL OCCLUSION ---
   float ring_radius = radius * 1.6f;
   float tilt = 0.3f;
   for (int i = 0; i < segments; i++) {
