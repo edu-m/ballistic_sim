@@ -27,6 +27,9 @@ volatile int sfx_exp = 0;
 volatile float audio_lock_ratio = 0.0f;
 volatile int audio_locked = 0;
 
+Planet scene_planets[2] = {{{12000.0f, 300.0f, 1800.0f}, 1400.0f},
+                           {{-10000.0f, -800.0f, 1000.0f}, 850.0f}};
+
 #if SOUND == 0
 void audio_callback(void *userdata, Uint8 *stream, int len) { return; }
 #else
@@ -144,20 +147,85 @@ void draw_3d_line(Vec3 w_a, Vec3 w_b, Vec3 cam_pos, float cam_yaw,
   SDL_RenderDrawLine(renderer, (int)p_a.x, (int)p_a.y, (int)p_b.x, (int)p_b.y);
 }
 
-void draw_planet(Vec3 pos, float radius, Vec3 cam_pos, float cam_yaw,
-                 float cam_pitch) {
-  int segments = 64;
+void draw_planet(int p_idx, Vec3 cam_pos, float cam_yaw, float cam_pitch) {
+  Vec3 pos = scene_planets[p_idx].pos;
+  float radius = scene_planets[p_idx].radius;
+  int segments = 128;
+  int parallels = 64;
+  int meridians = 64;
+
+  for (int i = 1; i < parallels; i++) {
+    float v = (float)i / parallels;
+    float theta = v * M_PI;
+    float y = cosf(theta) * radius;
+    float ring_r = sinf(theta) * radius;
+
+    for (int j = 0; j < segments; j++) {
+      float a1 = (float)j / segments * 2.0f * M_PI;
+      float a2 = (float)(j + 1) / segments * 2.0f * M_PI;
+
+      Vec3 p1 = {pos.x + cosf(a1) * ring_r, pos.y + y,
+                 pos.z + sinf(a1) * ring_r};
+      Vec3 p2 = {pos.x + cosf(a2) * ring_r, pos.y + y,
+                 pos.z + sinf(a2) * ring_r};
+
+      Vec3 n1 = {p1.x - pos.x, p1.y - pos.y, p1.z - pos.z};
+      Vec3 v1 = {cam_pos.x - p1.x, cam_pos.y - p1.y, cam_pos.z - p1.z};
+      Vec3 n2 = {p2.x - pos.x, p2.y - pos.y, p2.z - pos.z};
+      Vec3 v2 = {cam_pos.x - p2.x, cam_pos.y - p2.y, cam_pos.z - p2.z};
+
+      if ((n1.x * v1.x + n1.y * v1.y + n1.z * v1.z) < 0.0f &&
+          (n2.x * v2.x + n2.y * v2.y + n2.z * v2.z) < 0.0f)
+        continue;
+
+      draw_3d_line(p1, p2, cam_pos, cam_yaw, cam_pitch);
+    }
+  }
+
+  for (int i = 0; i < meridians; i++) {
+    float a = (float)i / meridians * M_PI;
+    float sin_a = sinf(a);
+    float cos_a = cosf(a);
+
+    for (int j = 0; j < segments; j++) {
+      float t1 = (float)j / segments * 2.0f * M_PI;
+      float t2 = (float)(j + 1) / segments * 2.0f * M_PI;
+
+      float bx1 = cosf(t1) * radius;
+      float by1 = sinf(t1) * radius;
+      float bx2 = cosf(t2) * radius;
+      float by2 = sinf(t2) * radius;
+
+      Vec3 p1 = {pos.x + (bx1 * cos_a), pos.y + by1, pos.z + (bx1 * sin_a)};
+      Vec3 p2 = {pos.x + (bx2 * cos_a), pos.y + by2, pos.z + (bx2 * sin_a)};
+
+      Vec3 n1 = {p1.x - pos.x, p1.y - pos.y, p1.z - pos.z};
+      Vec3 v1 = {cam_pos.x - p1.x, cam_pos.y - p1.y, cam_pos.z - p1.z};
+      Vec3 n2 = {p2.x - pos.x, p2.y - pos.y, p2.z - pos.z};
+      Vec3 v2 = {cam_pos.x - p2.x, cam_pos.y - p2.y, cam_pos.z - p2.z};
+
+      if ((n1.x * v1.x + n1.y * v1.y + n1.z * v1.z) < 0.0f &&
+          (n2.x * v2.x + n2.y * v2.y + n2.z * v2.z) < 0.0f)
+        continue;
+      draw_3d_line(p1, p2, cam_pos, cam_yaw, cam_pitch);
+    }
+  }
+
+  // --- 2. SATURN RINGS WITH GLOBAL OCCLUSION ---
+  float ring_radius = radius * 1.6f;
+  float tilt = 0.3f;
   for (int i = 0; i < segments; i++) {
     float a1 = (float)i / segments * 2.0f * M_PI;
     float a2 = (float)(i + 1) / segments * 2.0f * M_PI;
-    draw_3d_line(
-        (Vec3){pos.x + cosf(a1) * radius, pos.y, pos.z + sinf(a1) * radius},
-        (Vec3){pos.x + cosf(a2) * radius, pos.y, pos.z + sinf(a2) * radius},
-        cam_pos, cam_yaw, cam_pitch);
-    draw_3d_line(
-        (Vec3){pos.x + cosf(a1) * radius, pos.y + sinf(a1) * radius, pos.z},
-        (Vec3){pos.x + cosf(a2) * radius, pos.y + sinf(a2) * radius, pos.z},
-        cam_pos, cam_yaw, cam_pitch);
+
+    Vec3 p1 = {pos.x + cosf(a1) * ring_radius,
+               pos.y + sinf(a1) * ring_radius * tilt,
+               pos.z + sinf(a1) * ring_radius};
+    Vec3 p2 = {pos.x + cosf(a2) * ring_radius,
+               pos.y + sinf(a2) * ring_radius * tilt,
+               pos.z + sinf(a2) * ring_radius};
+
+    draw_3d_line(p1, p2, cam_pos, cam_yaw, cam_pitch);
   }
 }
 
@@ -599,11 +667,9 @@ int main() {
     }
 
     SDL_SetRenderDrawColor(renderer, 50, 50, 150, 255);
-    draw_planet((Vec3){1200.0f, 300.0f, 1800.0f}, 400.0f, player_pos, cam_yaw,
-                cam_pitch);
+    draw_planet(0,player_pos,cam_yaw,cam_pitch);
     SDL_SetRenderDrawColor(renderer, 150, 80, 50, 255);
-    draw_planet((Vec3){-2000.0f, -800.0f, 1000.0f}, 250.0f, player_pos, cam_yaw,
-                cam_pitch);
+    draw_planet(1,player_pos,cam_yaw,cam_pitch);;
 
     SDL_SetRenderDrawColor(renderer, 255, 80, 80, 255);
     for (int t = 0; t < MAX_TARGETS; t++) {

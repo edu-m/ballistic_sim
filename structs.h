@@ -33,4 +33,8 @@ typedef struct {
   float life;
 } Particle;
 
+typedef struct {
+  Vec3 pos;
+  float radius;
+} Planet;
 #endif
